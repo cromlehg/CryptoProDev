@@ -1,52 +1,45 @@
-        var CADESCOM_CADES_X_LONG_TYPE_1 = 0x5d;
+        var CADESCOM_CADES_BES = 1;
         var CAPICOM_CURRENT_USER_STORE = 2;
         var CAPICOM_MY_STORE = "My";
         var CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED = 2;
         var CAPICOM_CERTIFICATE_FIND_SUBJECT_NAME = 1;
 
         function SignCreate(certSubjectName, dataToSign) {
-            var oStore = cadesplugin.CreateObject("CAdESCOM.Store");
-            oStore.Open(CAPICOM_CURRENT_USER_STORE, CAPICOM_MY_STORE,
-            CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
+            return new Promise(function(resolve, reject){
+                cadesplugin.async_spawn(function *(args) {
+                    try {
+                        var oStore = yield cadesplugin.CreateObjectAsync("CAdESCOM.Store");
+                        yield oStore.Open(CAPICOM_CURRENT_USER_STORE, CAPICOM_MY_STORE,
+                            CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
 
-            var oCertificates = oStore.Certificates.Find(
-            CAPICOM_CERTIFICATE_FIND_SUBJECT_NAME, certSubjectName);
-            if (oCertificates.Count == 0) {
-                alert("Certificate not found: " + certSubjectName);
-                return;
-            }
-            var oCertificate = oCertificates.Item(1);
-            var oSigner = cadesplugin.CreateObject("CAdESCOM.CPSigner");
-            oSigner.Certificate = oCertificate;
-            oSigner.TSAAddress = "http://cryptopro.ru/tsp/";
+                        var CertificatesObj = yield oStore.Certificates;
+                        var oCertificates = yield CertificatesObj.Find(
+                            CAPICOM_CERTIFICATE_FIND_SUBJECT_NAME, certSubjectName);
 
-            var oSignedData = cadesplugin.CreateObject("CAdESCOM.CadesSignedData");
-            oSignedData.Content = dataToSign;
+                        var Count = yield oCertificates.Count;
+                        if (Count == 0) {
+                            throw("Certificate not found: " + args[0]);
+                        }
+                        var oCertificate = yield oCertificates.Item(1);
+                        var oSigner = yield cadesplugin.CreateObjectAsync("CAdESCOM.CPSigner");
+                        yield oSigner.propset_Certificate(oCertificate);
 
-            try {
-                var sSignedMessage = oSignedData.SignCades(oSigner, CADESCOM_CADES_X_LONG_TYPE_1);
-            } catch (err) {
-                alert("Failed to create signature. Error: " + cadesplugin.getLastError(err));
-                return;
-            }
+                        var oSignedData = yield cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData");
+                        yield oSignedData.propset_Content(dataToSign);
 
-            oStore.Close();
+                        var sSignedMessage = yield oSignedData.SignCades(oSigner, CADESCOM_CADES_BES);
 
-            return sSignedMessage;
+                        yield oStore.Close();
+
+                        args[2](sSignedMessage);
+                    }
+                    catch (e)
+                    {
+                        args[3]("Failed to create signature. Error: " + cadesplugin.getLastError(err));
+                    }
+                }, certSubjectName, dataToSign, resolve, reject);
+            });
         }
-
-        function Verify(sSignedMessage) {
-            var oSignedData = cadesplugin.CreateObject("CAdESCOM.CadesSignedData");
-            try {
-                oSignedData.VerifyCades(sSignedMessage, CADESCOM_CADES_X_LONG_TYPE_1);
-            } catch (err) {
-                alert("Failed to verify signature. Error: " + cadesplugin.getLastError(err));
-                return false;
-            }
-
-            return true;
-        }
-
 
         $('#processSign').click(function(e) {
             var oCertName = document.getElementById("CertName");
@@ -56,49 +49,29 @@
                 return;
             }
 
-
             var oMsgToSign = document.getElementById("MsgToSign");
-            var sMsgToSign = oMsgToSign.value; // Здесь следует заполнить SubjectName сертификата
+            var sMsgToSign = oMsgToSign.value; 
             if ("" == sMsgToSign) {
                 alert("Введите сообщение, которое хотите подписать.");
                 return;
             }
 
-            var signedMessage = SignCreate(sCertName, sMsgToSign);
 
-            document.getElementById("signature").innerHTML = signedMessage;
+            console.log("========================");
+            console.log(sCertName);
+            console.log(sMsgToSign);
+            console.log("========================");
 
-            var verifyResult = Verify(signedMessage);
-            if (verifyResult) {
-                alert("Signature verified");
-            }
+            var thenableSignedMessage = SignCreate(sCertName, sMsgToSign);
 
-
+            thenableSignedMessage.then(
+                function (result){
+                    document.getElementById("signature").innerHTML = result;
+                },
+                function (result){
+                    document.getElementById("signature").innerHTML = result;
+                });
 
         });
 
-/*        function run() {
-            var oCertName = document.getElementById("CertName");
-            var sCertName = oCertName.value; // Здесь следует заполнить SubjectName сертификата
-            if ("" == sCertName) {
-                alert("Введите имя сертификата (CN).");
-                return;
-            }
 
-
-            var oMsgToSign = document.getElementById("MsgToSign");
-            var sMsgToSign = oMsgToSign.value; // Здесь следует заполнить SubjectName сертификата
-            if ("" == sMsgToSign) {
-                alert("Введите сообщение, которое хотите подписать.");
-                return;
-            }
-
-            var signedMessage = SignCreate(sCertName, sMsgToSign);
-
-            document.getElementById("signature").innerHTML = signedMessage;
-
-            var verifyResult = Verify(signedMessage);
-            if (verifyResult) {
-                alert("Signature verified");
-            }
-        }*/
