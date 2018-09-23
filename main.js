@@ -33,13 +33,33 @@
 
                         args[2](sSignedMessage);
                     }
-                    catch (e)
+                    catch (err)
                     {
+                        console.log("!!!!!!!!!!!!!!!!!!!!!!1");
+                        console.log(err);
                         args[3]("Failed to create signature. Error: " + cadesplugin.getLastError(err));
                     }
                 }, certSubjectName, dataToSign, resolve, reject);
             });
         }
+
+
+
+function Common_CheckForPlugIn() {
+    cadesplugin.set_log_level(cadesplugin.LOG_LEVEL_DEBUG);
+    var canAsync = !!cadesplugin.CreateObjectAsync;
+    if(canAsync)
+    {
+        include_async_code().then(function(){
+            return CheckForPlugIn_Async();
+        });
+    }else
+    {
+        return CheckForPlugIn_NPAPI();
+    }
+}
+
+/*
 
         $('#processSign').click(function(e) {
             var oCertName = document.getElementById("CertName");
@@ -74,4 +94,33 @@
 
         });
 
+*/
+
+
+
+function Common_CheckForPlugIn() {
+    cadesplugin.set_log_level(cadesplugin.LOG_LEVEL_DEBUG);
+    var canAsync = !!cadesplugin.CreateObjectAsync;
+    if(canAsync)
+    {
+   alert("Async check for plugin");
+//        include_async_code().then(function(){
+     //       return CheckForPlugIn_Async();
+ //       });
+    }else
+    {
+   //     return CheckForPlugIn_NPAPI();
+    }
+}
+
+
+cadesplugin.then(function() {
+  alert("Ok");
+//  Common_CheckForPlugIn();
+/*  Common_CheckForPlugIn();
+  Common_CreateSimpleSign();*/
+},
+function(error) {
+  alert(error);
+});
 
